@@ -1,5 +1,6 @@
 venv/
-data/
+data/*
+!data/03_train.py
 models/
 __pycache__/
 *.pyc
