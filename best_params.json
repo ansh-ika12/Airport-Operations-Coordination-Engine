@@ -1,0 +1,6 @@
+{
+  "num_leaves": 63,
+  "min_child_samples": 300,
+  "learning_rate": 0.05,
+  "val_auc": 0.6776
+}

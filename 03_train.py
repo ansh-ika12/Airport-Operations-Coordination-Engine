@@ -1,3 +1,5 @@
+import json
+
 import joblib
 import lightgbm as lgb
 import numpy as np
@@ -29,6 +31,15 @@ def show(name, y, p, thr=0.5):
 def reg_metrics(y, p):
     return mean_absolute_error(y, p), float(np.sqrt(mean_squared_error(y, p)))
 
+
+# ---------- 0. Classifier settings: from the tuning step if available ----------
+DEFAULTS = {"num_leaves": 63, "min_child_samples": 20, "learning_rate": 0.05}
+PARAMS_FILE = ROOT / "best_params.json"
+params = dict(DEFAULTS)
+if PARAMS_FILE.exists():
+    saved = json.load(open(PARAMS_FILE))
+    params.update({k: saved[k] for k in DEFAULTS if k in saved})
+print("Classifier settings:", params)
 
 # ---------- 1. Load and split by time (never random) ----------
 df = pd.read_parquet(DATASET_FILE)
@@ -75,7 +86,8 @@ y_tr, y_va, y_te = train["delayed"], val["delayed"], test["delayed"]
 # because weighted log-loss gets worse immediately and would stop training after one tree.
 pos_rate = y_tr.mean()
 clf = lgb.LGBMClassifier(
-    n_estimators=1000, learning_rate=0.05, num_leaves=63,
+    n_estimators=3000, learning_rate=params["learning_rate"],
+    num_leaves=params["num_leaves"], min_child_samples=params["min_child_samples"],
     subsample=0.8, subsample_freq=1, colsample_bytree=0.8,
     scale_pos_weight=(1 - pos_rate) / pos_rate,
     metric="auc", random_state=42, verbose=-1,
