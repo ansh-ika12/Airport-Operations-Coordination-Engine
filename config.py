@@ -16,8 +16,9 @@ TRAIN_MONTHS = list(range(1, 10))
 VAL_MONTHS = [10]
 TEST_MONTHS = [11, 12]
 
-RISK_LOW_MAX = 0.30      # starting value, tuned by Ojashwee's analysis
-RISK_HIGH_MIN = 0.55     # starting value, tuned by Ojashwee's analysis
+# Provisional cutoffs for CALIBRATED probabilities; final values come from Ojashwee's analysis.
+RISK_LOW_MAX = 0.15
+RISK_HIGH_MIN = 0.30
 
 WEATHER_VARS = ["temperature_2m", "precipitation", "cloud_cover",
                 "wind_speed_10m", "wind_gusts_10m", "weather_code"]
