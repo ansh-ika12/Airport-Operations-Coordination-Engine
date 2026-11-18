@@ -5,3 +5,5 @@ models/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+ml_ojashwee/
+ml_ojashwee.zip

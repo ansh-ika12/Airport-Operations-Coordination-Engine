@@ -5,8 +5,14 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from sklearn.isotonic import IsotonicRegression
-from sklearn.metrics import (f1_score, mean_absolute_error, mean_squared_error,
-                             precision_score, recall_score, roc_auc_score)
+from sklearn.metrics import (
+    f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 
 from config import *
 
