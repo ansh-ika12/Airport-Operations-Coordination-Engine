@@ -69,6 +69,10 @@ for name, (drop, extra) in VARIANTS.items():
     lgb.train({**BASE, **extra}, dtr, num_boost_round=ROUNDS,
               valid_sets=[dva, dte], valid_names=["val", "test"],
               callbacks=[lgb.record_evaluation(ev)])
+    callbacks=[
+    lgb.record_evaluation(ev),
+    lgb.early_stopping(stopping_rounds=50)
+]
     va, te = np.array(ev["val"]["auc"]), np.array(ev["test"]["auc"])
     best = int(va.argmax())
     row = {"variant": name, "best_val_round": best + 1,
