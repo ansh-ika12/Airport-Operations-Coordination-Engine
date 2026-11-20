@@ -16,7 +16,7 @@ TRAIN_MONTHS = list(range(1, 10))
 VAL_MONTHS = [10]
 TEST_MONTHS = [11, 12]
 
-# Provisional cutoffs for CALIBRATED probabilities; final values come from Ojashwee's analysis.
+# Selected calibrated-probability cutoffs; see the risk analysis in the model card.
 RISK_LOW_MAX = 0.15
 RISK_HIGH_MIN = 0.30
 

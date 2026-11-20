@@ -11,7 +11,7 @@ pytestmark = pytest.mark.skipif(
     reason="Trained model files not found. Run 03_train.py first.")
 
 REQUIRED_KEYS = {"delay_probability", "expected_delay_minutes", "risk_level",
-                 "top_factors", "weather_source", "estimate", "disclaimer"}
+                 "top_factors", "weather_source", "warnings", "estimate", "disclaimer"}
 
 
 def sample_flight(**changes):
@@ -87,10 +87,46 @@ def test_risk_level_matches_cutoffs():
     assert risk_level(RISK_HIGH_MIN) == "High"
 
 
-def test_unknown_airport_is_rejected():
-    from ml.predictor import predict_flight
-    with pytest.raises(ValueError):
-        predict_flight(sample_flight(origin="XXX"))
+def test_unknown_airport_is_scored_with_warning(monkeypatch):
+    import ml.predictor as p
+
+    calls = []
+
+    def fake_forecast(lat, lon, when, prefix):
+        calls.append(prefix)
+        return ({f"{prefix}{v}": 1.0 for v in p.WEATHER_VARS}, True)
+
+    monkeypatch.setattr(p, "_forecast", fake_forecast)
+    result = p.predict_flight(sample_flight(dest="MCO"))
+
+    assert 0.0 <= result["delay_probability"] <= 1.0
+    assert result["warnings"] and "MCO" in result["warnings"][0]
+    assert calls == ["o_"]
+    assert result["weather_source"] == "partly or fully unavailable"
+
+
+def test_expected_delay_is_capped_at_300(monkeypatch):
+    import ml.predictor as p
+
+    state = p._load().copy()
+
+    class LongDelayRegressor:
+        def predict(self, X):
+            return np.array([450.0])
+
+    state["reg"] = LongDelayRegressor()
+    monkeypatch.setattr(p, "_load", lambda: state)
+    monkeypatch.setattr(
+        p, "_forecast",
+        lambda lat, lon, when, prefix: (
+            {f"{prefix}{v}": 0.0 for v in p.WEATHER_VARS}, True
+        ),
+    )
+    monkeypatch.setattr(p, "_factors", lambda *args, **kwargs: [])
+
+    result = p.predict_flight(sample_flight())
+
+    assert result["expected_delay_minutes"] == 300.0
 
 
 def test_missing_field_is_rejected():

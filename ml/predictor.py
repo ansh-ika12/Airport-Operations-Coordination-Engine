@@ -132,8 +132,16 @@ def predict_flight(flight: dict) -> dict:
 
     origin, dest = flight["origin"], flight["dest"]
     coords = meta["airport_coords"]
-    if origin not in coords or dest not in coords:
-        raise ValueError(f"Origin and destination must be one of: {sorted(coords)}")
+    unknown_airports = sorted({airport for airport in (origin, dest) if airport not in coords})
+    warnings = []
+    if unknown_airports:
+        message = (
+            f"Airport code(s) not found in model data: {', '.join(unknown_airports)}. "
+            "Prediction will continue using general historical rates without "
+            "airport-specific weather."
+        )
+        log.warning(message)
+        warnings.append(message)
 
     date = pd.Timestamp(flight["flight_date"]).normalize()
     dep_hour = (int(flight["sched_dep_time"]) // 100) % 24
@@ -142,8 +150,14 @@ def predict_flight(flight: dict) -> dict:
     dep_dt = date + pd.Timedelta(hours=dep_hour)
     arr_dt = date + pd.Timedelta(hours=arr_hour + overnight)
 
-    wx_o, ok_o = _forecast(*coords[origin], dep_dt, "o_")
-    wx_d, ok_d = _forecast(*coords[dest], arr_dt, "d_")
+    wx_o, ok_o = (
+        _forecast(*coords[origin], dep_dt, "o_")
+        if origin in coords else ({f"o_{v}": np.nan for v in WEATHER_VARS}, False)
+    )
+    wx_d, ok_d = (
+        _forecast(*coords[dest], arr_dt, "d_")
+        if dest in coords else ({f"d_{v}": np.nan for v in WEATHER_VARS}, False)
+    )
 
     h = meta["history"]
     g = h["global"]
@@ -167,11 +181,12 @@ def predict_flight(flight: dict) -> dict:
     }
     X = pd.DataFrame([row])[meta["features"]]
     for c, categories in meta["cats"].items():
-        X[c] = pd.Categorical(X[c], categories=categories)
+        values = X[c]
+        X[c] = pd.Categorical(values.where(values.isin(categories)), categories=categories)
 
     raw = float(clf.predict_proba(X)[0, 1])
     prob = float(np.clip(cal.predict([raw])[0], 0.0, 1.0))       # calibrated probability
-    minutes = max(0.0, float(reg.predict(X)[0]))
+    minutes = float(np.clip(reg.predict(X)[0], 0.0, 300.0))
     values = {k: _clean(v) for k, v in row.items()}
 
     return {
@@ -180,6 +195,7 @@ def predict_flight(flight: dict) -> dict:
         "risk_level": risk_level(prob),
         "top_factors": _factors(clf, X, values),
         "weather_source": "forecast" if (ok_o and ok_d) else "partly or fully unavailable",
+        "warnings": warnings,
         "estimate": True,
         "disclaimer": DISCLAIMER,
     }
